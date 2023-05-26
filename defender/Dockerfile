@@ -6,7 +6,7 @@ FROM python:3.7-slim
 
 # install git for pip install git+https://
 RUN apt-get -o Acquire::Max-FutureTime=100000 update \
- && apt-get install -y --no-install-recommends build-essential git
+    && apt-get install -y --no-install-recommends build-essential git
 
 # create a virtual environment
 RUN python -m venv /opt/venv
@@ -15,7 +15,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 # copy and install python requirements + ember from github
 COPY docker-requirements.txt .
 RUN pip install --no-cache-dir -r docker-requirements.txt \
- && pip install --no-cache-dir git+https://github.com/elastic/ember.git
+    && pip install --no-cache-dir git+https://github.com/elastic/ember.git
 
 #############################
 # REBASE & DEPLOY CODE
@@ -27,7 +27,7 @@ FROM python:3.7-slim
 # required libgomp1 for ember
 RUN apt-get -o Acquire::Max-FutureTime=100000 update \
     && apt-get -y --no-install-recommends install \
-        libgomp1 \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # copy python virtual env (all dependencies) from previous image
@@ -50,6 +50,20 @@ USER defender
 # change working directory
 WORKDIR /opt/defender/
 
+# Change permissions of the temporary folder- pranav changes
+########################################### 
+# Change ownership of the working directory
+USER root
+RUN chown -R defender:defender /opt/defender/
+
+# Switch back to the defender user
+USER defender
+
+RUN mkdir temp
+USER root
+RUN chmod -R 777 temp
+USER defender
+##########################################
 # update environmental variables
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONPATH="/opt/defender"
