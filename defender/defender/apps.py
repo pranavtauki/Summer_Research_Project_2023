@@ -10,6 +10,8 @@ import _pickle as cPickle
 import gzip
 import tempfile
 
+THRESHOLD = 0.75
+
 
 def create_app(model, threshold):
     app = Flask(__name__)
@@ -110,6 +112,76 @@ def create_app(model, threshold):
             # save_gzip_pickle(CLF_FILE, clf)
             model_path = 'defender/models/pat.pkl'
             os.rename(temp_file.name, model_path)
+
+            testing_folder = os.path.join(temp_folder, 'test_files')
+
+            test_data = []
+            for root, _, files in os.walk(testing_folder):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    try:
+                        with open(file_path, 'rb') as f:
+                            bytez = f.read()
+                        pe_att_ext = PEAttributeExtractor(bytez)
+                        print(file_path)
+                        test_atts = pe_att_ext.extract()
+                        test_atts['label'] = 1
+                        test_data.append(test_atts)
+                    except (lief.bad_format, lief.read_out_of_bound) as e:
+                        print(f"Error processing {file_path}: {e}")
+
+            testing_data = pd.DataFrame(test_data)
+            testing_data = testing_data[(testing_data["label"] == 1) | (
+                testing_data["label"] == 0)]
+            test_label = testing_data["label"].values
+            y_pred = clf.predict(testing_data)
+
+            from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
+            from sklearn.metrics import confusion_matrix
+
+            acc = accuracy_score(test_label, y_pred)
+            print("Acc:", acc)
+            rec = recall_score(test_label, y_pred)
+            print("Rec:", rec)
+            pre = precision_score(test_label, y_pred)
+            print("Pre:", pre)
+            f1s = f1_score(test_label, y_pred)
+            print("F1s:", f1s)
+            cm = confusion_matrix(test_label, y_pred)
+
+            tn, fp, fn, tp = cm.ravel()
+
+            # Fall out or false positive rate
+            FPR = fp/(fp+tn)
+            # False negative rate
+            FNR = fn/(tp+fn)
+            # # False discovery rate
+            # FDR = FP/(TP+FP)
+            print("FPR:", FPR)
+            print("FNR:", FNR)
+
+            y_pred = clf.predict_threshold(testing_data, threshold=THRESHOLD)
+
+            acc = accuracy_score(test_label, y_pred)
+            print("Acc:", acc)
+            rec = recall_score(test_label, y_pred)
+            print("Rec:", rec)
+            pre = precision_score(test_label, y_pred)
+            print("Pre:", pre)
+            f1s = f1_score(test_label, y_pred)
+            print("F1s:", f1s)
+            cm = confusion_matrix(test_label, y_pred)
+
+            tn, fp, fn, tp = cm.ravel()
+
+            # Fall out or false positive rate
+            FPR = fp/(fp+tn)
+            # False negative rate
+            FNR = fn/(tp+fn)
+            # # False discovery rate
+            # FDR = FP/(TP+FP)
+            print("FPR:", FPR)
+            print("FNR:", FNR)
 
             resp = jsonify({'message': 'Model trained successfully'})
             resp.status_code = 200
