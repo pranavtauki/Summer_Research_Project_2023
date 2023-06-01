@@ -2,13 +2,6 @@ import sys
 import requests
 import os
 import zipfile
-import gzip
-import json
-import pickle
-import numpy as np
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-import _pickle as cPickle
 
 
 class NFS_base:
